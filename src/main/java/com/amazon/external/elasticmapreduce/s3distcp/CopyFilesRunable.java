@@ -9,6 +9,7 @@
 /*     */ import java.io.InputStream;
 /*     */ import java.io.OutputStream;
 /*     */ import java.net.URI;
+/*     */ import java.lang.*;
 /*     */ import java.nio.charset.Charset;
 /*     */ import java.security.MessageDigest;
 /*     */ import java.util.ArrayList;
@@ -70,6 +71,13 @@
 /*  89 */     int numRetriesRemaining = this.reducer.getNumTransferRetries();
 /*  90 */     byte[] digest = null;
 /*  91 */     Path curTempPath = null;
+
+if (this.fileInfos.size() == 1) {
+    for (FileInfo fileInfo : this.fileInfos) {
+        return new ProcessedFile(digest, new Path(fileInfo.inputFileName.toString()));
+    }
+}
+
 /*     */ 
 /*  93 */     while ((!finished) && (numRetriesRemaining > 0)) {
 /*  94 */       numRetriesRemaining--;
@@ -152,7 +160,7 @@
 /*     */ 
 /*     */   public void run()
 /*     */   {
-/* 175 */     int retriesRemaining = this.reducer.getNumTransferRetries();
+/* 175 */     Integer retries = 0;
 /* 176 */     ProcessedFile processedFile = null;
 /*     */     try
 /*     */     {
@@ -161,8 +169,8 @@
 /* 183 */       LOG.warn("Error download input files. Not marking as committed", e);
 /*     */     }
 /*     */ 
-/* 186 */     while (retriesRemaining > 0) {
-/* 187 */       retriesRemaining--;
+/* 186 */     while (retries < 100) {
+/* 187 */       retries++;
 /*     */       try {
 /* 189 */         Path curTempPath = processedFile.path;
 /* 190 */         FileSystem inFs = curTempPath.getFileSystem(this.reducer.getConf());
@@ -190,25 +198,46 @@
 /* 212 */         fs.delete(localTempPath, true);
 /* 213 */         return;
 /*     */       } catch (Exception e) {
-/* 215 */         LOG.warn("Error processing files. Not marking as committed", e);
+/* 215 */         LOG.warn("Error during processing files. Retry count: " + retries.toString(), e);
+
+try {
+    long waitTime = Math.min((long) Math.pow(2, retries) * 100L, 60000);
+    Thread.sleep(waitTime);
+} catch (InterruptedException ex) {
+    LOG.warn("Got InterruptedException during sleep...", ex);
+}
+
 /*     */       }
 /*     */     }
+LOG.warn("Error processing files. Not marking as committed: " + processedFile.path.toString());
 /*     */   }
 /*     */ 
 /*     */   private void copyToFinalDestination(Path curTempPath, Path finalPath, ProcessedFile processedFile, FileSystem inFs, FileSystem outFs) throws Exception
 /*     */   {
 /* 222 */     LOG.info("Copying " + curTempPath.toString() + " to " + finalPath.toString());
 /* 223 */     byte[] digest = processedFile.checksum;
-/* 224 */     InputStream inStream = this.reducer.openInputStream(curTempPath);
 /* 225 */     OutputStream outStream = null;
-/* 226 */     if (Utils.isS3Scheme(outFs.getUri().getScheme())) {
+
+InputStream inStream = null;
+URI inUri = curTempPath.toUri();
+URI outUri = finalPath.toUri();
+
+AmazonS3Client s3 = S3DistCp.createAmazonS3Client(this.reducer.getConf());
+s3.setEndpoint(this.reducer.getConf().get("fs.s3n.endpoint", "s3.amazonaws.com"));
+     
+    if (Utils.isS3Scheme(inFs.getUri().getScheme()) && Utils.isS3Scheme(outFs.getUri().getScheme())) {
+        LOG.info("Source and destination are both on S3, use (the faster) direct copy API.");
+        LOG.info("inURI: " + inUri.getHost() + " " + inUri.getPath());
+        LOG.info("outURI: " + outUri.getHost() + " " + outUri.getPath());
+        s3.copyObject(inUri.getHost(), inUri.getPath().substring(1), outUri.getHost(), outUri.getPath().substring(1));
+    }
+    else if (Utils.isS3Scheme(outFs.getUri().getScheme())) {
+        inStream = this.reducer.openInputStream(curTempPath);
+
 /* 227 */       FileStatus status = inFs.getFileStatus(curTempPath);
-/* 228 */       URI outUri = finalPath.toUri();
 /* 229 */       String bucket = outUri.getHost();
 /*     */ 
 /* 231 */       String key = outUri.getPath().substring(1);
-/* 232 */       AmazonS3Client s3 = S3DistCp.createAmazonS3Client(this.reducer.getConf());
-/* 233 */       s3.setEndpoint(this.reducer.getConf().get("fs.s3n.endpoint", "s3.amazonaws.com"));
 /* 234 */       ObjectMetadata meta = new ObjectMetadata();
 /* 235 */       meta.setContentLength(status.getLen());
 /* 236 */       if (digest != null) {
@@ -244,8 +273,10 @@
 /* 266 */       copyStream(inStream, outStream, md);
 /* 267 */       outStream.close();
 /*     */     }
-/* 269 */     inStream.close();
-/*     */   }
+              if (inStream != null) {
+                inStream.close();
+              }
+    }
 /*     */ 
 /*     */   private class ProcessedFile
 /*     */   {

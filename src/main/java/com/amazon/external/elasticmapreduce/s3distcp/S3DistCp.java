@@ -151,8 +151,8 @@
 /* 465 */       endpoint = "s3-us-gov-west-1.amazonaws.com";
 /*     */     }
 /* 467 */     if (endpoint != null) {
-/* 468 */       LOG.info("AmazonS3Client setEndpoint s3-us-gov-west-1.amazonaws.com");
-/* 469 */       s3Client.setEndpoint("s3-us-gov-west-1.amazonaws.com");
+/* 468 */       LOG.info("AmazonS3Client setEndpoint " + endpoint);
+/* 469 */       s3Client.setEndpoint(endpoint);
 /*     */     }
 /* 471 */     return s3Client;
 /*     */   }

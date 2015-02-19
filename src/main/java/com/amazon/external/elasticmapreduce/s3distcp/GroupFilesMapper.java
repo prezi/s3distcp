@@ -2,6 +2,7 @@
 /*    */ 
 /*    */ import java.io.IOException;
 /*    */ import java.net.URI;
+/*    */ import java.net.URL;
 /*    */ import java.net.URISyntaxException;
 /*    */ import java.util.regex.Matcher;
 /*    */ import java.util.regex.Pattern;
@@ -42,7 +43,14 @@
 /*    */     Text key;
 /*    */     try
 /*    */     {
-/* 46 */       String path = new URI(fileInfo.inputFileName.toString()).getPath();
+
+String urlStr = fileInfo.inputFileName.toString();
+
+String scheme = urlStr.substring(0, urlStr.indexOf(":"));
+URL url = new URL("http"+urlStr.substring(urlStr.indexOf(":")));
+URI uri = new URI(scheme, url.getUserInfo(), url.getHost(), url.getPort(), url.getPath(), url.getQuery(), url.getRef());
+
+/* 46 */       String path = uri.getPath();
 /* 47 */       if (path.startsWith(this.destDir)) {
 /* 48 */         path = path.substring(this.destDir.length());
 /*    */       }
