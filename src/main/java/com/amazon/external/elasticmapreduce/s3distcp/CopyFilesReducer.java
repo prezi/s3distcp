@@ -1,5 +1,5 @@
 /*     */ package com.amazon.external.elasticmapreduce.s3distcp;
-/*     */ 
+/*     */
 /*     */ import com.google.common.collect.Lists;
 /*     */ //import com.hadoop.compression.lzo.LzopCodec;
 /*     */ import java.io.IOException;
@@ -25,7 +25,7 @@
 /*     */ import org.apache.hadoop.mapred.Reducer;
 /*     */ import org.apache.hadoop.mapred.Reporter;
 /*     */ import org.apache.hadoop.util.Progressable;
-/*     */ 
+/*     */
 /*     */ public class CopyFilesReducer
 /*     */   implements Reducer<Text, FileInfo, Text, Text>
 /*     */ {
@@ -45,7 +45,7 @@
 /*     */   private boolean useMultipartUpload;
 /*     */   private boolean numberFiles;
 /*     */   private JobConf conf;
-/*     */ 
+/*     */
 /*     */   public void close()
 /*     */     throws IOException
 /*     */   {
@@ -56,31 +56,31 @@
 /*  60 */         LOG.warn("failed to upload " + fileInfo.inputFileName);
 /*  61 */         this.collector.collect(fileInfo.outputFileName, fileInfo.inputFileName);
 /*     */       }
-/*     */ 
+/*     */
 /*  65 */       if (this.uncommitedFiles.size() > 0) {
-/*  66 */         String message = String.format("Reducer task failed to copy %d files: %s etc", new Object[] { Integer.valueOf(this.uncommitedFiles.size()), ((FileInfo)this.uncommitedFiles.iterator().next()).inputFileName });
-/*     */ 
+/*  66 */         String message = String.format("Reducer task failed to copy %d files: %s", new Object[] { Integer.valueOf(this.uncommitedFiles.size()), ((FileInfo)this.uncommitedFiles.iterator().next()).inputFileName });
+/*     */
 /*  70 */         throw new RuntimeException(message);
 /*     */       }
 /*     */     }
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public JobConf getConf() {
 /*  76 */     return this.conf;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public boolean shouldDeleteOnSuccess() {
 /*  80 */     return this.deleteOnSuccess;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public boolean shouldUseMutlipartUpload() {
 /*  84 */     return this.useMultipartUpload;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public int getMultipartSize() {
 /*  88 */     return this.multipartSize;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public void configure(JobConf conf)
 /*     */   {
 /*  93 */     this.conf = conf;
@@ -98,29 +98,29 @@
 /* 105 */     this.numTransferRetries = conf.getInt("s3DistCp.copyfiles.mapper.numRetries", 10);
 /* 106 */     this.useMultipartUpload = conf.getBoolean("s3DistCp.copyFiles.useMultipartUploads", true);
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public int getNumTransferRetries()
 /*     */   {
 /* 111 */     return this.numTransferRetries;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public int getBufferSize()
 /*     */   {
 /* 116 */     return this.bufferSize;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public boolean shouldReencodeFiles() {
 /* 120 */     return validCodecs.contains(this.outputCodec);
 /*     */   }
-/*     */ 
+/*     */
 /*     */   private String makeFinalPath(long fileUid, String finalDir, String groupId, String groupIndex) {
 /* 124 */     String[] groupIds = groupId.split("/");
 /* 125 */     groupId = groupIds[(groupIds.length - 1)];
-/*     */ 
+/*     */
 /* 127 */     if (this.numberFiles) {
 /* 128 */       groupId = fileUid + groupId;
 /*     */     }
-/*     */ 
+/*     */
 /* 131 */     if (!this.outputCodec.equalsIgnoreCase("keep"))
 /*     */     {
 /*     */       String suffix;
@@ -144,10 +144,10 @@
 /* 147 */         name = name + "." + suffix;
 /*     */       }
 /*     */     }
-/*     */ 
+/*     */
 /* 151 */     return finalDir + "/" + name;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public void reduce(Text groupKey, Iterator<FileInfo> fileInfos, OutputCollector<Text, Text> collector, Reporter reporter)
 /*     */     throws IOException
 /*     */   {
@@ -167,11 +167,11 @@
 /* 170 */         Path tempPath = new Path(this.tempDir + "/" + groupId);
 /* 171 */         Path finalPath = new Path(fileInfo.outputFileName.toString()).getParent();
 /* 172 */         String groupIndex = Integer.toString(groupNum);
-/* 173 */         if ((numFiles == 1) && 
+/* 173 */         if ((numFiles == 1) &&
 /* 174 */           (!fileInfos.hasNext())) {
 /* 175 */           groupIndex = "";
 /*     */         }
-/*     */ 
+/*     */
 /* 178 */         finalPath = new Path(makeFinalPath(fileInfo.fileUID.get(), finalPath.toString(), groupId, groupIndex));
 /* 179 */         LOG.info("tempPath:" + tempPath + " finalPath:" + finalPath);
 /* 180 */         executeDownloads(this, curFiles, tempPath, finalPath);
@@ -193,7 +193,7 @@
 /* 196 */       executeDownloads(this, curFiles, tempPath, finalPath);
 /*     */     }
 /*     */   }
-/*     */ 
+/*     */
 /*     */   private void executeDownloads(CopyFilesReducer reducer, List<FileInfo> fileInfos, Path tempPath, Path finalPath) {
 /* 201 */     synchronized (this) {
 /* 202 */       for (FileInfo fileInfo : fileInfos) {
@@ -208,7 +208,7 @@
 /* 211 */       LOG.info("No files to process");
 /*     */     }
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public void markFileAsCommited(FileInfo fileInfo) {
 /* 216 */     LOG.info("commit " + fileInfo.inputFileName);
 /* 217 */     synchronized (this) {
@@ -216,11 +216,11 @@
 /* 219 */       progress();
 /*     */     }
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public InputStream openInputStream(Path inputFilePath) throws IOException {
 /* 224 */     FileSystem inputFs = inputFilePath.getFileSystem(this.conf);
 /* 225 */     InputStream inputStream = inputFs.open(inputFilePath);
-/*     */ 
+/*     */
 /* 227 */     if (!this.outputCodec.equalsIgnoreCase("keep")) {
 /* 228 */       String suffix = Utils.getSuffix(inputFilePath.getName());
 /* 229 */       if (suffix.equalsIgnoreCase("gz"))
@@ -239,7 +239,7 @@
 /*     */     }
 /* 241 */     return inputStream;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public OutputStream openOutputStream(Path outputFilePath) throws IOException {
 /* 245 */     FileSystem outputFs = outputFilePath.getFileSystem(this.conf);
 /* 246 */     OutputStream outputStream = outputFs.create(outputFilePath, this.reporter);
@@ -257,11 +257,11 @@
 /*     */     }
 /* 258 */     return outputStream;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public Progressable getProgressable() {
 /* 262 */     return this.reporter;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public void progress() {
 /* 266 */     this.reporter.progress();
 /*     */   }

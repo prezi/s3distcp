@@ -1,5 +1,5 @@
 /*     */ package com.amazon.external.elasticmapreduce.s3distcp;
-/*     */ 
+/*     */
 /*     */ //import amazon.emr.metrics.MetricsSaver;
 /*     */ //import amazon.emr.metrics.MetricsSaver.StopWatch;
 /*     */ import com.amazonaws.services.s3.AmazonS3Client;
@@ -25,7 +25,7 @@
 /*     */ import org.apache.hadoop.fs.common.Abortable;
 /*     */ import org.apache.hadoop.io.Text;
 /*     */ import org.apache.hadoop.mapred.JobConf;
-/*     */ 
+/*     */
 /*     */ class CopyFilesRunable
 /*     */   implements Runnable
 /*     */ {
@@ -34,7 +34,7 @@
 /*     */   private final CopyFilesReducer reducer;
 /*     */   private final String tempPath;
 /*     */   private final Path finalPath;
-/*     */ 
+/*     */
 /*     */   public CopyFilesRunable(CopyFilesReducer reducer, List<FileInfo> fileInfos, Path tempPath, Path finalPath)
 /*     */   {
 /*  58 */     this.fileInfos = fileInfos;
@@ -43,7 +43,7 @@
 /*  61 */     this.finalPath = finalPath;
 /*  62 */     LOG.info("Creating CopyFilesRunnable " + tempPath.toString() + ":" + finalPath.toString());
 /*     */   }
-/*     */ 
+/*     */
 /*     */   private long copyStream(InputStream inputStream, OutputStream outputStream, MessageDigest md) throws IOException
 /*     */   {
 /*  67 */     long bytesCopied = 0L;
@@ -65,7 +65,7 @@
 /*     */     }
 /*  84 */     return bytesCopied;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public ProcessedFile downloadAndMergeInputFiles() throws Exception {
 /*  88 */     boolean finished = false;
 /*  89 */     int numRetriesRemaining = this.reducer.getNumTransferRetries();
@@ -78,11 +78,11 @@ if (this.fileInfos.size() == 1) {
     }
 }
 
-/*     */ 
+/*     */
 /*  93 */     while ((!finished) && (numRetriesRemaining > 0)) {
 /*  94 */       numRetriesRemaining--;
 /*  95 */       OutputStream outputStream = null;
-/*     */ 
+/*     */
 /*  98 */       curTempPath = new Path(this.tempPath + UUID.randomUUID());
 /*     */       try {
 /* 100 */         LOG.info("Opening temp file: " + curTempPath.toString());
@@ -121,7 +121,7 @@ if (this.fileInfos.size() == 1) {
 /*     */         }
 /*     */         catch (IOException e1) {
 /*     */         }
-/* 136 */         if (numRetriesRemaining <= 0) throw e; 
+/* 136 */         if (numRetriesRemaining <= 0) throw e;
 /*     */       }
 /*     */       finally {
 /*     */         try { outputStream.close();
@@ -132,12 +132,12 @@ if (this.fileInfos.size() == 1) {
 /*     */     }
 /* 145 */     return null;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   private static File[] getTempDirs(Configuration conf) {
 /* 149 */     String[] backupDirs = conf.get("fs.s3.buffer.dir").split(",");
 /* 150 */     List tempDirs = new ArrayList(backupDirs.length);
 /* 151 */     int directoryIndex = 0;
-/*     */ 
+/*     */
 /* 153 */     File result = null;
 /* 154 */     while (directoryIndex < backupDirs.length) {
 /* 155 */       File dir = new File(backupDirs[directoryIndex]);
@@ -154,10 +154,10 @@ if (this.fileInfos.size() == 1) {
 /*     */       }
 /* 167 */       directoryIndex += 1;
 /*     */     }
-/*     */ 
+/*     */
 /* 170 */     return (File[])tempDirs.toArray(new File[0]);
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public void run()
 /*     */   {
 /* 175 */     Integer retries = 0;
@@ -168,8 +168,8 @@ if (this.fileInfos.size() == 1) {
 /*     */     } catch (Exception e) {
 /* 183 */       LOG.warn("Error download input files. Not marking as committed", e);
 /*     */     }
-/*     */ 
-/* 186 */     while (retries < 100) {
+/*     */
+/* 186 */     while (retries < 10) {
 /* 187 */       retries++;
 /*     */       try {
 /* 189 */         Path curTempPath = processedFile.path;
@@ -183,7 +183,7 @@ if (this.fileInfos.size() == 1) {
 /* 197 */           LOG.info("inFs.getUri()!=outFs.getUri(): " + inFs.getUri() + "!=" + outFs.getUri());
 /* 198 */           copyToFinalDestination(curTempPath, this.finalPath, processedFile, inFs, outFs);
 /*     */         }
-/*     */ 
+/*     */
 /* 201 */         for (FileInfo fileInfo : this.fileInfos) {
 /* 202 */           this.reducer.markFileAsCommited(fileInfo);
 /* 203 */           if (this.reducer.shouldDeleteOnSuccess()) {
@@ -200,18 +200,24 @@ if (this.fileInfos.size() == 1) {
 /*     */       } catch (Exception e) {
 /* 215 */         LOG.warn("Error during processing files. Retry count: " + retries.toString(), e);
 
-try {
-    long waitTime = Math.min((long) Math.pow(2, retries) * 100L, 60000);
-    Thread.sleep(waitTime);
-} catch (InterruptedException ex) {
-    LOG.warn("Got InterruptedException during sleep...", ex);
+if (e.getErrorCode() == "SlowDown") {
+    try {
+        // exponential backoff
+        long waitTime = Math.min((long) Math.pow(2, retries) * 100L, 10000);
+        Thread.sleep(waitTime);
+    } catch (InterruptedException ex) {
+        LOG.warn("Got InterruptedException during sleep...", ex);
+    }
+} else {
+    LOG.warn("Got non-throttling exception, e.getErrorCode(): " + e.getErrorCode());
+    LOG.warn("Got non-throttling exception, e.getErrorMessage(): " + e.getErrorMessage());
 }
 
 /*     */       }
 /*     */     }
 LOG.warn("Error processing files. Not marking as committed: " + processedFile.path.toString());
 /*     */   }
-/*     */ 
+/*     */
 /*     */   private void copyToFinalDestination(Path curTempPath, Path finalPath, ProcessedFile processedFile, FileSystem inFs, FileSystem outFs) throws Exception
 /*     */   {
 /* 222 */     LOG.info("Copying " + curTempPath.toString() + " to " + finalPath.toString());
@@ -224,7 +230,7 @@ URI outUri = finalPath.toUri();
 
 AmazonS3Client s3 = S3DistCp.createAmazonS3Client(this.reducer.getConf());
 s3.setEndpoint(this.reducer.getConf().get("fs.s3n.endpoint", "s3.amazonaws.com"));
-     
+
     if (Utils.isS3Scheme(inFs.getUri().getScheme()) && Utils.isS3Scheme(outFs.getUri().getScheme())) {
         LOG.info("Source and destination are both on S3, use (the faster) direct copy API.");
         LOG.info("inURI: " + inUri.getHost() + " " + inUri.getPath());
@@ -236,14 +242,14 @@ s3.setEndpoint(this.reducer.getConf().get("fs.s3n.endpoint", "s3.amazonaws.com")
 
 /* 227 */       FileStatus status = inFs.getFileStatus(curTempPath);
 /* 229 */       String bucket = outUri.getHost();
-/*     */ 
+/*     */
 /* 231 */       String key = outUri.getPath().substring(1);
 /* 234 */       ObjectMetadata meta = new ObjectMetadata();
 /* 235 */       meta.setContentLength(status.getLen());
 /* 236 */       if (digest != null) {
 /* 237 */         meta.setContentMD5(new String(Base64.encodeBase64(digest), Charset.forName("UTF-8")));
 /*     */       }
-/*     */ 
+/*     */
 /* 240 */       if (this.reducer.shouldUseMutlipartUpload()) {
 /* 241 */         int chunkSize = this.reducer.getMultipartSize();
 /* 242 */         outStream = new MultipartUploadOutputStream(s3, Utils.createDefaultExecutorService(), this.reducer.getProgressable(), bucket, key, meta, chunkSize, getTempDirs(this.reducer.getConf()));
@@ -267,7 +273,7 @@ s3.setEndpoint(this.reducer.getConf().get("fs.s3n.endpoint", "s3.amazonaws.com")
 /*     */     else {
 /* 261 */       outStream = this.reducer.openOutputStream(finalPath);
 /*     */     }
-/*     */ 
+/*     */
 /* 264 */     if (outStream != null) {
 /* 265 */       MessageDigest md = MessageDigest.getInstance("MD5");
 /* 266 */       copyStream(inStream, outStream, md);
@@ -277,12 +283,12 @@ s3.setEndpoint(this.reducer.getConf().get("fs.s3n.endpoint", "s3.amazonaws.com")
                 inStream.close();
               }
     }
-/*     */ 
+/*     */
 /*     */   private class ProcessedFile
 /*     */   {
 /*     */     public byte[] checksum;
 /*     */     public Path path;
-/*     */ 
+/*     */
 /*     */     public ProcessedFile(byte[] checksum, Path path)
 /*     */     {
 /*  41 */       this.checksum = checksum;
