@@ -4,6 +4,7 @@
 /*     */ //import amazon.emr.metrics.MetricsSaver.StopWatch;
 /*     */ import com.amazonaws.services.s3.AmazonS3Client;
 /*     */ import com.amazonaws.services.s3.model.ObjectMetadata;
+          import com.amazonaws.services.s3.model.AmazonS3Exception;
 /*     */ import java.io.File;
 /*     */ import java.io.IOException;
 /*     */ import java.io.InputStream;
@@ -197,23 +198,23 @@ if (this.fileInfos.size() == 1) {
 /* 211 */         FileSystem fs = localTempPath.getFileSystem(this.reducer.getConf());
 /* 212 */         fs.delete(localTempPath, true);
 /* 213 */         return;
-/*     */       } catch (Exception e) {
-/* 215 */         LOG.warn("Error during processing files. Retry count: " + retries.toString(), e);
+/*     */       } catch (AmazonS3Exception e) {
+                    LOG.warn("Error during processing files. Retry count: " + retries.toString(), e);
+                    if (e.getErrorCode() == "SlowDown") {
+                        try {
+                            // exponential backoff
+                            long waitTime = Math.min((long) Math.pow(2, retries) * 100L, 10000);
+                            Thread.sleep(waitTime);
+                        } catch (InterruptedException ex) {
+                            LOG.warn("Got InterruptedException during sleep...", ex);
+                        }
+                    } else {
+                        LOG.warn("Got non-throttling exception, e.getErrorCode(): " + e.getErrorCode());
+                    }
 
-if (e.getErrorCode() == "SlowDown") {
-    try {
-        // exponential backoff
-        long waitTime = Math.min((long) Math.pow(2, retries) * 100L, 10000);
-        Thread.sleep(waitTime);
-    } catch (InterruptedException ex) {
-        LOG.warn("Got InterruptedException during sleep...", ex);
-    }
-} else {
-    LOG.warn("Got non-throttling exception, e.getErrorCode(): " + e.getErrorCode());
-    LOG.warn("Got non-throttling exception, e.getErrorMessage(): " + e.getErrorMessage());
-}
-
-/*     */       }
+                } catch (Exception e) {
+                    LOG.warn("Error during processing files. Retry count: " + retries.toString(), e);
+                }
 /*     */     }
 LOG.warn("Error processing files. Not marking as committed: " + processedFile.path.toString());
 /*     */   }
