@@ -14,6 +14,7 @@
 /*     */ import java.util.UUID;
 /*     */ import java.util.zip.GZIPInputStream;
 /*     */ import java.util.zip.GZIPOutputStream;
+          import java.net.*;
           import java.net.URLDecoder;
 /*     */ import org.apache.commons.logging.Log;
 /*     */ import org.apache.commons.logging.LogFactory;
@@ -49,8 +50,7 @@
 /*     */   private JobConf conf;
             private String fallbackUri;
 /*     */
-/*     */   public void close()
-/*     */     throws IOException
+/*     */   public void close() throws IOException, MalformedURLException
 /*     */   {
 /*  56 */     this.transferQueue.close();
               Gson gson = new Gson();
@@ -60,10 +60,10 @@
 /*  59 */       for (FileInfo fileInfo : this.uncommitedFiles) {
 /*  60 */         LOG.warn("failed to upload " + fileInfo.inputFileName);
 
-                  String basePath = getBaseName(fileInfo.inputFileName.toString(), srcDir);
+                  String basePath = getBaseName(fileInfo.inputFileName.toString());
                   String fullPath = new Path(srcDir, basePath).toString();
                   ManifestEntry entry = new ManifestEntry(URLDecoder.decode(fullPath, "UTF-8"), URLDecoder.decode(basePath, "UTF-8"), srcDir, 1);
-                  String outLine = new StringBuilder().append(gson.toJson(entry)).append("\n").toString();
+                  String outLine = gson.toJson(entry).toString();
 /*  61 */         this.collector.collect(fileInfo.inputFileName, new Text(outLine.getBytes("utf-8")));
 /*     */       }
 /*     */
@@ -75,11 +75,15 @@
 /*     */     }
 /*     */   }
 
-            private String getBaseName(String filePathString, String srcDirString)
+            private String getBaseName(String filePathString) throws MalformedURLException
 /*     */   {
 /* 140 */     String suffix = filePathString;
-/* 142 */     if (filePathString.startsWith(srcDirString)) {
-/* 143 */       suffix = filePathString.substring(srcDirString.length());
+
+              String scheme = filePathString.substring(0, filePathString.indexOf(":"));
+              URL url = new URL("http"+filePathString.substring(filePathString.indexOf(":")));
+              String srcDir = scheme + "://" + url.getHost();
+/* 142 */     if (filePathString.startsWith(srcDir)) {
+/* 143 */       suffix = filePathString.substring(srcDir.length());
 /* 144 */       if (suffix.startsWith("/")) {
 /* 145 */         suffix = suffix.substring(1);
 /*     */       }
