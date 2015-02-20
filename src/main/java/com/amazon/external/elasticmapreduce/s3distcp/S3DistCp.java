@@ -1,5 +1,5 @@
 /*     */ package com.amazon.external.elasticmapreduce.s3distcp;
-/*     */ 
+/*     */
 /*     */ import com.amazonaws.AmazonClientException;
 /*     */ import com.amazonaws.auth.AWSCredentials;
 /*     */ import com.amazonaws.auth.BasicAWSCredentials;
@@ -50,7 +50,7 @@
 /*     */ import org.apache.hadoop.mapred.SequenceFileInputFormat;
 /*     */ import org.apache.hadoop.mapred.TextOutputFormat;
 /*     */ import org.apache.hadoop.util.Tool;
-/*     */ 
+/*     */
 /*     */ public class S3DistCp
 /*     */   implements Tool
 /*     */ {
@@ -60,7 +60,7 @@
 /*     */   public static final String S3_ENDPOINT_PDT = "s3-us-gov-west-1.amazonaws.com";
 /*  63 */   private static String ec2MetaDataAz = null;
 /*     */   private Configuration conf;
-/*     */ 
+/*     */
 /*     */   public void createInputFileList(Configuration conf, Path srcPath, FileInfoListing fileInfoListing)
 /*     */   {
 /* 378 */     URI srcUri = srcPath.toUri();
@@ -87,7 +87,7 @@
 /* 399 */         System.exit(-4);
 /*     */       }
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public void createInputFileListS3(Configuration conf, URI srcUri, FileInfoListing fileInfoListing)
 /*     */   {
 /* 405 */     AmazonS3Client s3Client = createAmazonS3Client(conf);
@@ -97,14 +97,14 @@
 /* 409 */     String scheme = srcUri.getScheme() + "://";
 /* 410 */     while (!finished) {
 /* 411 */       ListObjectsRequest listObjectRequest = new ListObjectsRequest().withBucketName(srcUri.getHost());
-/*     */ 
+/*     */
 /* 413 */       if (srcUri.getPath().length() > 1) {
 /* 414 */         listObjectRequest.setPrefix(srcUri.getPath().substring(1));
 /*     */       }
 /* 416 */       if (objects != null) {
 /* 417 */         listObjectRequest.withMaxKeys(Integer.valueOf(1000)).withMarker(objects.getNextMarker());
 /*     */       }
-/*     */ 
+/*     */
 /*     */       try
 /*     */       {
 /* 422 */         objects = s3Client.listObjects(listObjectRequest);
@@ -118,7 +118,7 @@
 /* 430 */         LOG.warn("Error listing objects: " + e.getMessage(), e);
                   continue;
 /* 431 */       }
-/*     */ 
+/*     */
 /* 434 */       for (S3ObjectSummary object : objects.getObjectSummaries())
 /* 435 */         if (object.getKey().endsWith("/")) {
 /* 436 */           LOG.info("Skipping key '" + object.getKey() + "' because it ends with '/'");
@@ -132,7 +132,7 @@
 /* 444 */         finished = true;
 /*     */     }
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public static AmazonS3Client createAmazonS3Client(Configuration conf)
 /*     */   {
 /* 452 */     String accessKeyId = conf.get("fs.s3n.awsAccessKeyId");
@@ -156,7 +156,7 @@
 /*     */     }
 /* 471 */     return s3Client;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   private static String getHostName() {
 /*     */     try {
 /* 476 */       InetAddress addr = InetAddress.getLocalHost();
@@ -164,22 +164,22 @@
 /*     */     }
 /* 479 */     return "unknown";
 /*     */   }
-/*     */ 
+/*     */
 /*     */   private static boolean isGovCloud()
 /*     */   {
 /* 486 */     if (ec2MetaDataAz != null) {
 /* 487 */       return ec2MetaDataAz.startsWith("us-gov-west-1");
 /*     */     }
-/*     */ 
+/*     */
 /* 492 */     String hostname = getHostName();
 /* 493 */     int timeout = hostname.startsWith("ip-") ? 30000 : 5000;
 /* 494 */     GetMethod getMethod = new GetMethod("http://169.254.169.254/latest/meta-data/placement/availability-zone");
 /*     */     try {
 /* 496 */       HttpConnectionManager manager = new SimpleHttpConnectionManager();
 /* 497 */       HttpConnectionManagerParams params = manager.getParams();
-/*     */ 
+/*     */
 /* 499 */       params.setConnectionTimeout(timeout);
-/*     */ 
+/*     */
 /* 501 */       params.setSoTimeout(timeout);
 /* 502 */       HttpClient httpClient = new HttpClient(manager);
 /* 503 */       int status = httpClient.executeMethod(getMethod);
@@ -197,14 +197,14 @@
 /*     */     }
 /* 516 */     return false;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public int run(String[] args)
 /*     */   {
 /* 521 */     S3DistCpOptions options = new S3DistCpOptions(args, getConf());
 /* 522 */     if (options.isHelpDefined()) return 0;
 /* 523 */     return run(options);
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public int run(S3DistCpOptions options) {
 /* 527 */     JobConf job = new JobConf(getConf(), S3DistCp.class);
 /* 528 */     Path srcPath = new Path(options.getSrcPath());
@@ -212,7 +212,7 @@
 /* 530 */       LOG.fatal("Source path must be absolute");
 /* 531 */       System.exit(5);
 /*     */     }
-/*     */ 
+/*     */
 /*     */     try
 /*     */     {
 /* 537 */       FileSystem fs = FileSystem.get(srcPath.toUri(), job);
@@ -222,39 +222,40 @@
 /* 541 */       throw new RuntimeException("Failed to get source file system", e);
 /*     */     }
 /* 543 */     job.set("s3DistCp.copyfiles.srcDir", srcPath.toString());
-/*     */ 
+/*     */
 /* 546 */     String tempDirRoot = job.get("s3DistCp.copyfiles.reducer.tempDir", options.getTmpDir());
 /* 547 */     if (tempDirRoot == null) {
 /* 548 */       tempDirRoot = "hdfs:///tmp";
 /*     */     }
-/*     */ 
+/*     */
 /* 551 */     tempDirRoot = tempDirRoot + "/" + UUID.randomUUID();
-/*     */ 
+/*     */
 /* 553 */     Path outputPath = new Path(tempDirRoot, "output");
 /* 554 */     Path inputPath = new Path(tempDirRoot, "files");
 /* 555 */     Path tempPath = new Path(tempDirRoot, "tempspace");
 /* 556 */     Path destPath = new Path(options.getDest());
-/*     */ 
+/*     */
 /* 558 */     if (!destPath.isAbsolute()) {
 /* 559 */       LOG.fatal("Destination path must be absolute");
 /* 560 */       System.exit(4);
 /*     */     }
-/*     */ 
+/*     */
 /* 563 */     job.set("s3DistCp.copyfiles.reducer.tempDir", tempDirRoot);
 /* 564 */     LOG.info("Using output path '" + outputPath.toString() + "'");
-/*     */ 
+/*     */
 /* 566 */     job.set("s3DistCp.copyfiles.destDir", destPath.toString());
 /* 567 */     job.setBoolean("s3DistCp.copyfiles.reducer.numberFiles", options.getNumberFiles().booleanValue());
-/*     */ 
+              job.set("s3DistCp.copyfiles.reducer.fallbackUri", options.getFallbackUri());
+/*     */
 /* 570 */     deleteRecursive(job, inputPath);
 /* 571 */     deleteRecursive(job, outputPath);
-/*     */ 
+/*     */
 /* 573 */     FileInfoListing fileInfoListing = null;
 /* 574 */     File manifestFile = null;
 /* 575 */     if (options.getManifestPath() != null) {
 /* 576 */       manifestFile = new File(options.getManifestPath());
 /*     */     }
-/*     */ 
+/*     */
 /*     */     try
 /*     */     {
 /* 582 */       Map previousManifest = null;
@@ -267,11 +268,11 @@
 /* 589 */       LOG.fatal("Error initializing manifest file", e1);
 /* 590 */       System.exit(5);
 /*     */     }
-/*     */ 
+/*     */
 /* 593 */     if (options.getSrcPattern() != null) {
 /* 594 */       fileInfoListing.setSrcPattern(Pattern.compile(options.getSrcPattern()));
 /*     */     }
-/*     */ 
+/*     */
 /* 600 */     if (options.getGroupByPattern() != null) {
 /* 601 */       String groupByPattern = options.getGroupByPattern();
 /* 602 */       if ((!groupByPattern.contains("(")) || (!groupByPattern.contains(")"))) {
@@ -286,17 +287,17 @@
 /* 611 */         System.exit(1);
 /*     */       }
 /*     */     }
-/*     */ 
+/*     */
 /* 615 */     if (options.getFilePerMapper() != null) {
 /* 616 */       fileInfoListing.setRecordsPerFile(options.getFilePerMapper());
 /*     */     }
-/*     */ 
+/*     */
 /* 622 */     if (options.getS3Endpoint() != null)
 /* 623 */       job.set("fs.s3n.endpoint", options.getS3Endpoint());
 /* 624 */     else if (isGovCloud()) {
 /* 625 */       job.set("fs.s3n.endpoint", "s3-us-gov-west-1.amazonaws.com");
 /*     */     }
-/*     */ 
+/*     */
 /* 628 */     job.setBoolean("s3DistCp.copyFiles.useMultipartUploads", !options.getDisableMultipartUpload().booleanValue());
 /* 629 */     if (options.getMultipartUploadPartSize() != null) {
 /* 630 */       Integer partSize = options.getMultipartUploadPartSize();
@@ -316,11 +317,11 @@
 /*     */     finally {
 /* 645 */       fileInfoListing.close();
 /*     */     }
-/*     */ 
+/*     */
 /* 648 */     job.setJobName("S3DistCp: " + srcPath.toString() + " -> " + destPath.toString());
-/*     */ 
+/*     */
 /* 650 */     job.setReduceSpeculativeExecution(false);
-/*     */ 
+/*     */
 /* 653 */     if (options.getTargetSize() != null) {
 /*     */       try {
 /* 655 */         long targetSize = options.getTargetSize().intValue();
@@ -330,15 +331,15 @@
 /* 659 */         System.exit(2);
 /*     */       }
 /*     */     }
-/*     */ 
+/*     */
 /* 663 */     String outputCodec = options.getOutputCodec();
 /* 664 */     job.set("s3DistCp.copyfiles.reducer.outputCodec", outputCodec);
-/*     */ 
+/*     */
 /* 666 */     job.setBoolean("s3DistCp.copyFiles.deleteFilesOnSuccess", options.getDeleteOnSuccess().booleanValue());
-/*     */ 
+/*     */
 /* 668 */     FileInputFormat.addInputPath(job, inputPath);
 /* 669 */     FileOutputFormat.setOutputPath(job, outputPath);
-/*     */ 
+/*     */
 /* 671 */     job.setInputFormat(SequenceFileInputFormat.class);
 /* 672 */     job.setOutputKeyClass(Text.class);
 /* 673 */     job.setOutputValueClass(FileInfo.class);
@@ -369,7 +370,7 @@
 /*     */     }
 /* 699 */     return 0;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   private void deleteRecursiveNoThrow(Configuration conf, Path path) {
 /* 703 */     LOG.info("Try to recursively delete " + path.toString());
 /*     */     try {
@@ -379,7 +380,7 @@
 /* 708 */       LOG.info("Failed to recursively delete " + path.toString());
 /*     */     }
 /*     */   }
-/*     */ 
+/*     */
 /*     */   private void deleteRecursive(Configuration conf, Path outputPath) {
 /*     */     try {
 /* 714 */       FileSystem.get(outputPath.toUri(), conf).delete(outputPath, true);
@@ -388,17 +389,17 @@
 /* 717 */       throw new RuntimeException("Unable to delete directory " + outputPath.toString(), e);
 /*     */     }
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public Configuration getConf()
 /*     */   {
 /* 723 */     return this.conf;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public void setConf(Configuration conf)
 /*     */   {
 /* 728 */     this.conf = conf;
 /*     */   }
-/*     */ 
+/*     */
 /*     */   public static class S3DistCpOptions
 /*     */   {
 /*  69 */     private static final Log LOG = LogFactory.getLog(S3DistCpOptions.class);
@@ -420,11 +421,13 @@
 /*     */     Map<String, ManifestEntry> previousManifest;
 /*  87 */     Boolean copyFromManifest = Boolean.valueOf(false);
 /*  88 */     boolean helpDefined = false;
-/*     */ 
+
+              String fallbackUri;
+/*     */
 /*     */     public S3DistCpOptions()
 /*     */     {
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public S3DistCpOptions(String[] args, Configuration conf) {
 /*  95 */       Options options = new Options();
 /*  96 */       SimpleOption helpOption = options.noArg("--help", "Print help text");
@@ -445,15 +448,17 @@
 /* 111 */       OptionWithArg outputManifest = options.withArg("--outputManifest", "The name of the manifest file");
 /* 112 */       OptionWithArg previousManifest = options.withArg("--previousManifest", "The path to an existing manifest file");
 /* 113 */       SimpleOption copyFromManifest = options.noArg("--copyFromManifest", "Copy from a manifest instead of listing a directory");
+
+                OptionWithArg fallbackUri = options.withArg("--fallbackUri", "S3 path which will be used to generate fallback manifest file");
 /* 114 */       options.parseArguments(args);
 /* 115 */       if (helpOption.defined()) {
 /* 116 */         LOG.info(options.helpText());
 /* 117 */         this.helpDefined = true;
 /*     */       }
-/*     */ 
+/*     */
 /* 120 */       srcOption.require();
 /* 121 */       destOption.require();
-/*     */ 
+/*     */
 /* 123 */       if (srcOption.defined()) {
 /* 124 */         setSrcPath(srcOption.value);
 /*     */       }
@@ -507,8 +512,12 @@
 /*     */       }
 /* 174 */       if (copyFromManifest.defined())
 /* 175 */         setCopyFromManifest(true);
+
+                if (fallbackUri.defined()) {
+/* 151 */         this.fallbackUri = fallbackUri.value;
+/*     */       }
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public static Map<String, ManifestEntry> loadManifest(Path manifestPath, Configuration config)
 /*     */     {
 /* 180 */       Gson gson = new Gson();
@@ -541,141 +550,141 @@
 /*     */       }
 /* 207 */       return manifest;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public String getSrcPath() {
 /* 211 */       return this.srcPath;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setSrcPath(String srcPath) {
 /* 215 */       this.srcPath = srcPath;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public String getTmpDir() {
 /* 219 */       return this.tmpDir;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setTmpDir(String tmpDir) {
 /* 223 */       this.tmpDir = tmpDir;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public String getDest() {
 /* 227 */       return this.dest;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setDest(String dest) {
 /* 231 */       this.dest = dest;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public Boolean getNumberFiles() {
 /* 235 */       return Boolean.valueOf(this.numberFiles);
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setNumberFiles(Boolean numberFiles) {
 /* 239 */       this.numberFiles = numberFiles.booleanValue();
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public String getSrcPattern() {
 /* 243 */       return this.srcPattern;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setSrcPattern(String srcPattern) {
 /* 247 */       this.srcPattern = srcPattern;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public Long getFilePerMapper() {
 /* 251 */       return this.filePerMapper;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setFilePerMapper(String filePerMapper) {
 /* 255 */       this.filePerMapper = toLong(filePerMapper);
 /*     */     }
-/*     */ 
+/*     */
 /*     */     private Long toLong(String s) {
 /* 259 */       if (s != null) {
 /* 260 */         return Long.valueOf(s);
 /*     */       }
-/*     */ 
+/*     */
 /* 263 */       return null;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     private Integer toInteger(String s)
 /*     */     {
 /* 268 */       if (s != null) {
 /* 269 */         return Integer.valueOf(s);
 /*     */       }
-/*     */ 
+/*     */
 /* 272 */       return null;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public String getGroupByPattern()
 /*     */     {
 /* 277 */       return this.groupByPattern;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setGroupByPattern(String groupByPattern) {
 /* 281 */       this.groupByPattern = groupByPattern;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public Integer getTargetSize() {
 /* 285 */       return this.targetSize;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setTargetSize(String targetSize) {
 /* 289 */       this.targetSize = toInteger(targetSize);
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public String getOutputCodec() {
 /* 293 */       return this.outputCodec;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setOutputCodec(String outputCodec) {
 /* 297 */       this.outputCodec = outputCodec;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public String getS3Endpoint() {
 /* 301 */       return this.s3Endpoint;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setS3Endpoint(String s3Endpoint) {
 /* 305 */       this.s3Endpoint = s3Endpoint;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public Boolean getDeleteOnSuccess() {
 /* 309 */       return Boolean.valueOf(this.deleteOnSuccess);
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setDeleteOnSuccess(Boolean deleteOnSuccess) {
 /* 313 */       this.deleteOnSuccess = deleteOnSuccess.booleanValue();
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public Boolean getDisableMultipartUpload() {
 /* 317 */       return Boolean.valueOf(this.disableMultipartUpload);
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setDisableMultipartUpload(Boolean disableMultipartUpload) {
 /* 321 */       this.disableMultipartUpload = disableMultipartUpload.booleanValue();
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public String getManifestPath() {
 /* 325 */       return this.manifestPath;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setManifestPath(String manifestPath) {
 /* 329 */       this.manifestPath = manifestPath;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public Integer getMultipartUploadPartSize() {
 /* 333 */       return this.multipartUploadPartSize;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setMultipartUploadPartSize(String multipartUploadPartSize) {
 /* 337 */       this.multipartUploadPartSize = toInteger(multipartUploadPartSize);
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public Long getStartingIndex() {
 /* 341 */       return this.startingIndex;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setStartingIndex(String startingIndex) {
 /* 345 */       if (startingIndex != null) {
 /* 346 */         this.startingIndex = Long.valueOf(startingIndex);
@@ -683,27 +692,31 @@
 /*     */       else
 /* 349 */         this.startingIndex = Long.valueOf(0L);
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public Map<String, ManifestEntry> getPreviousManifest()
 /*     */     {
 /* 354 */       return this.previousManifest;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setPreviousManifest(Map<String, ManifestEntry> previousManifest) {
 /* 358 */       this.previousManifest = previousManifest;
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public boolean getCopyFromManifest() {
 /* 362 */       return this.copyFromManifest.booleanValue();
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public void setCopyFromManifest(boolean copyFromManifest) {
 /* 366 */       this.copyFromManifest = Boolean.valueOf(copyFromManifest);
 /*     */     }
-/*     */ 
+/*     */
 /*     */     public boolean isHelpDefined() {
 /* 370 */       return this.helpDefined;
 /*     */     }
+
+              public String getFallbackUri() {
+                return this.fallbackUri;
+              }
 /*     */   }
 /*     */ }
 

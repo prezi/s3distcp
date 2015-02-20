@@ -14,6 +14,7 @@
 /*     */ import java.util.UUID;
 /*     */ import java.util.zip.GZIPInputStream;
 /*     */ import java.util.zip.GZIPOutputStream;
+          import java.net.URLDecoder;
 /*     */ import org.apache.commons.logging.Log;
 /*     */ import org.apache.commons.logging.LogFactory;
 /*     */ import org.apache.hadoop.fs.FileSystem;
@@ -46,18 +47,24 @@
 /*     */   private boolean useMultipartUpload;
 /*     */   private boolean numberFiles;
 /*     */   private JobConf conf;
+            private String fallbackUri;
 /*     */
 /*     */   public void close()
 /*     */     throws IOException
 /*     */   {
 /*  56 */     this.transferQueue.close();
               Gson gson = new Gson();
+              String srcDir = this.fallbackUri;
 /*  57 */     synchronized (this) {
 /*  58 */       LOG.info("CopyFilesReducer uncommitted file " + this.uncommitedFiles.size());
 /*  59 */       for (FileInfo fileInfo : this.uncommitedFiles) {
 /*  60 */         LOG.warn("failed to upload " + fileInfo.inputFileName);
-                  String outLine = new StringBuilder().append(gson.toJson(fileInfo)).append("\n").toString();
-/*  61 */         this.collector.collect(fileInfo.inputFileName, new Text(new String(outLine.getBytes("utf-8"), "UTF-8")));
+
+                  String basePath = getBaseName(fileInfo.inputFileName.toString(), srcDir);
+                  String fullPath = new Path(srcDir, basePath).toString();
+                  ManifestEntry entry = new ManifestEntry(URLDecoder.decode(fullPath, "UTF-8"), URLDecoder.decode(basePath, "UTF-8"), srcDir, 1);
+                  String outLine = new StringBuilder().append(gson.toJson(entry)).append("\n").toString();
+/*  61 */         this.collector.collect(fileInfo.inputFileName, new Text(outLine.getBytes("utf-8")));
 /*     */       }
 /*     */
 /*  65 */       if (this.uncommitedFiles.size() > 0) {
@@ -66,6 +73,18 @@
 /*  70 */         //throw new RuntimeException(message);
 /*     */       }
 /*     */     }
+/*     */   }
+
+            private String getBaseName(String filePathString, String srcDirString)
+/*     */   {
+/* 140 */     String suffix = filePathString;
+/* 142 */     if (filePathString.startsWith(srcDirString)) {
+/* 143 */       suffix = filePathString.substring(srcDirString.length());
+/* 144 */       if (suffix.startsWith("/")) {
+/* 145 */         suffix = suffix.substring(1);
+/*     */       }
+/*     */     }
+/* 148 */     return suffix;
 /*     */   }
 /*     */
 /*     */   public JobConf getConf() {
@@ -100,6 +119,8 @@
 /* 104 */     this.deleteOnSuccess = conf.getBoolean("s3DistCp.copyFiles.deleteFilesOnSuccess", false);
 /* 105 */     this.numTransferRetries = conf.getInt("s3DistCp.copyfiles.mapper.numRetries", 10);
 /* 106 */     this.useMultipartUpload = conf.getBoolean("s3DistCp.copyFiles.useMultipartUploads", true);
+
+              this.fallbackUri = conf.get("s3DistCp.copyfiles.reducer.fallbackUri");
 /*     */   }
 /*     */
 /*     */   public int getNumTransferRetries()
