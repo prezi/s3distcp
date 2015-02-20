@@ -1,6 +1,7 @@
 /*     */ package com.amazon.external.elasticmapreduce.s3distcp;
 /*     */
 /*     */ import com.google.common.collect.Lists;
+          import com.google.gson.Gson;
 /*     */ //import com.hadoop.compression.lzo.LzopCodec;
 /*     */ import java.io.IOException;
 /*     */ import java.io.InputStream;
@@ -50,11 +51,13 @@
 /*     */     throws IOException
 /*     */   {
 /*  56 */     this.transferQueue.close();
+              Gson gson = new Gson();
 /*  57 */     synchronized (this) {
 /*  58 */       LOG.info("CopyFilesReducer uncommitted file " + this.uncommitedFiles.size());
 /*  59 */       for (FileInfo fileInfo : this.uncommitedFiles) {
 /*  60 */         LOG.warn("failed to upload " + fileInfo.inputFileName);
-/*  61 */         this.collector.collect(fileInfo.outputFileName, fileInfo.inputFileName);
+                  String outLine = new StringBuilder().append(gson.toJson(fileInfo)).append("\n").toString();
+/*  61 */         this.collector.collect(fileInfo.inputFileName, new Text(new String(outLine.getBytes("utf-8"), "UTF-8")));
 /*     */       }
 /*     */
 /*  65 */       if (this.uncommitedFiles.size() > 0) {
