@@ -60,7 +60,7 @@
 /*  65 */       if (this.uncommitedFiles.size() > 0) {
 /*  66 */         String message = String.format("Reducer task failed to copy %d files: %s", new Object[] { Integer.valueOf(this.uncommitedFiles.size()), ((FileInfo)this.uncommitedFiles.iterator().next()).inputFileName });
 /*     */
-/*  70 */         throw new RuntimeException(message);
+/*  70 */         //throw new RuntimeException(message);
 /*     */       }
 /*     */     }
 /*     */   }

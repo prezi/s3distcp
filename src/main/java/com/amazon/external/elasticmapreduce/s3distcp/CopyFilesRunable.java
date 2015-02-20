@@ -170,10 +170,11 @@ if (this.fileInfos.size() == 1) {
 /* 183 */       LOG.warn("Error download input files. Not marking as committed", e);
 /*     */     }
 /*     */
+              Path curTempPath = processedFile.path;
 /* 186 */     while (retries < 10) {
 /* 187 */       retries++;
 /*     */       try {
-/* 189 */         Path curTempPath = processedFile.path;
+/* 189 */
 /* 190 */         FileSystem inFs = curTempPath.getFileSystem(this.reducer.getConf());
 /* 191 */         FileSystem outFs = this.finalPath.getFileSystem(this.reducer.getConf());
 /* 192 */         if (inFs.getUri().equals(outFs.getUri())) {
@@ -201,13 +202,19 @@ if (this.fileInfos.size() == 1) {
 /*     */       } catch (AmazonS3Exception e) {
                     LOG.warn("Error during processing files. Retry count: " + retries.toString(), e);
                     if (e.getErrorCode() == "SlowDown") {
+                        // exponential backoff
                         try {
-                            // exponential backoff
                             long waitTime = Math.min((long) Math.pow(2, retries) * 100L, 10000);
                             Thread.sleep(waitTime);
                         } catch (InterruptedException ex) {
                             LOG.warn("Got InterruptedException during sleep...", ex);
                         }
+                    } else if (e.getErrorCode() == "NoSuchKey") {
+                        LOG.warn("Got NoSuchKey exception for: " + curTempPath.toString());
+                        return;
+                    } else if (e.getErrorCode() == "PermanentRedirect") {
+                        LOG.warn("Got PermanentRedirect exception for: " + curTempPath.toString());
+                        return;
                     } else {
                         LOG.warn("Got non-throttling exception, e.getErrorCode(): " + e.getErrorCode());
                     }
