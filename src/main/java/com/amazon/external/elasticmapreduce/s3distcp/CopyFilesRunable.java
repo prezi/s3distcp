@@ -201,7 +201,7 @@ if (this.fileInfos.size() == 1) {
 /* 213 */         return;
 /*     */       } catch (AmazonS3Exception e) {
                     LOG.warn("Error during processing files. Retry count: " + retries.toString(), e);
-                    if (e.getErrorCode() == "SlowDown") {
+                    if (e.getErrorCode().equals("SlowDown")) {
                         // exponential backoff
                         try {
                             long waitTime = Math.min((long) Math.pow(2, retries) * 100L, 10000);
@@ -209,10 +209,10 @@ if (this.fileInfos.size() == 1) {
                         } catch (InterruptedException ex) {
                             LOG.warn("Got InterruptedException during sleep...", ex);
                         }
-                    } else if (e.getErrorCode() == "NoSuchKey") {
+                    } else if (e.getErrorCode().equals("NoSuchKey")) {
                         LOG.warn("Got NoSuchKey exception for: " + curTempPath.toString());
                         return;
-                    } else if (e.getErrorCode() == "PermanentRedirect") {
+                    } else if (e.getErrorCode().equals("PermanentRedirect")) {
                         LOG.warn("Got PermanentRedirect exception for: " + curTempPath.toString());
                         return;
                     } else {

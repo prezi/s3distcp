@@ -715,6 +715,9 @@
 /*     */     }
 
               public String getFallbackUri() {
+                if (this.fallbackUri == null) {
+                    return this.getSrcPath().toString();
+                }
                 return this.fallbackUri;
               }
 /*     */   }
