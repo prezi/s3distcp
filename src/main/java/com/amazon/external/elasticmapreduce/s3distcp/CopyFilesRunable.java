@@ -171,7 +171,7 @@ if (this.fileInfos.size() == 1) {
 /*     */     }
 /*     */
               Path curTempPath = processedFile.path;
-/* 186 */     while (retries < 10) {
+/* 186 */     while (retries < 200) {
 /* 187 */       retries++;
 /*     */       try {
 /* 189 */
@@ -204,7 +204,7 @@ if (this.fileInfos.size() == 1) {
                     if (e.getErrorCode().equals("SlowDown")) {
                         // exponential backoff
                         try {
-                            long waitTime = Math.min((long) Math.pow(2, retries) * 100L, 10000);
+                            long waitTime = Math.min((long) Math.pow(2, retries) * 200L, 10000);
                             Thread.sleep(waitTime);
                         } catch (InterruptedException ex) {
                             LOG.warn("Got InterruptedException during sleep...", ex);
