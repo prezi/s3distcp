@@ -239,8 +239,9 @@ URI outUri = finalPath.toUri();
 AmazonS3Client s3 = S3DistCp.createAmazonS3Client(this.reducer.getConf());
 s3.setEndpoint(this.reducer.getConf().get("fs.s3n.endpoint", "s3.amazonaws.com"));
 
-    if (Utils.isS3Scheme(inFs.getUri().getScheme()) && Utils.isS3Scheme(outFs.getUri().getScheme())) {
-        LOG.info("Source and destination are both on S3, use (the faster) direct copy API.");
+    Boolean isSameRegion = Utils.isS3Scheme(inFs.getUri().getScheme()) && Utils.isS3Scheme(outFs.getUri().getScheme()) && false // TODO
+    if (isSameRegion) {
+        LOG.info("Source and destination buckets are in the same region, use (the faster) direct copy API.");
         LOG.info("inURI: " + inUri.getHost() + " " + inUri.getPath());
         LOG.info("outURI: " + outUri.getHost() + " " + outUri.getPath());
         s3.copyObject(inUri.getHost(), inUri.getPath().substring(1), outUri.getHost(), outUri.getPath().substring(1));
